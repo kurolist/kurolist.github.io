@@ -765,22 +765,53 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function fetchAiringWebtoons() {
-  if (!webtoonSection) return;
-  try {
-    // On utilise Jikan pour éviter les blocages de MangaDex
-    const res = await fetch("https://api.jikan.moe/v4/manga?type=manhwa&status=publishing&order_by=score&sort=desc&limit=20");
-    const data = await res.json();
-    
-    webtoonSection.innerHTML = "";
-    (data.data || []).forEach((webtoon) => {
-      webtoonSection.appendChild(createAnimeCard({ ...webtoon, source: "webtoon" }));
-    });
-  } catch (error) {
-    console.error("Erreur Webtoons:", error);
-    webtoonSection.innerHTML = "<p>Erreur de chargement.</p>";
-  }
-}
+    if (!webtoonSection) return;
+    try {
+      const res = await fetch("https://api.mangadex.org/manga?title=a&limit=20&includes[]=cover_art");
+      const data = await res.json();
 
+      webtoonSection.innerHTML = "";
+      (data.data || [])
+        .map((i) => {
+          const attrs = i.attributes || {};
+          const titleObj = attrs.title || {};
+          const title = titleObj.en || Object.values(titleObj)[0] || "No title";
+
+          let image = "https://via.placeholder.com/300x450?text=Kurolist";
+          const cover = i.relationships?.find((r) => r.type === "cover_art");
+          if (cover?.attributes?.fileName) {
+            image = `https://uploads.mangadex.org/covers/${i.id}/${cover.attributes.fileName}.512.jpg`;
+          }
+
+          const description = attrs.description || {};
+          const synopsis =
+            description.fr || // Priorité au français
+            description.en ||
+            Object.values(description).find((v) => typeof v === "string" && v.trim()) ||
+            "Pas de résumé.";
+
+          const tags =
+            (attrs.tags || [])
+              .map((t) => t?.attributes?.name?.en || Object.values(t?.attributes?.name || {})[0])
+              .filter(Boolean) || [];
+
+          return {
+            id: i.id,
+            mal_id: i.id,
+            source: "webtoon",
+            title,
+            type: "Webtoon",
+            score: attrs.rating || attrs.score || 0,
+            synopsis,
+            genres: tags.map((name) => ({ name })),
+            images: { jpg: { image_url: image } },
+          };
+        })
+        .forEach((webtoon) => webtoonSection.appendChild(createAnimeCard(webtoon)));
+    } catch {
+      webtoonSection.innerHTML = "<p>Erreur.</p>";
+    }
+  }
 
   /////////////////////////////
   // EVENTS
