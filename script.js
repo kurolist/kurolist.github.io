@@ -778,16 +778,35 @@ async function fetchWebtoon(query) {
 
   webtoonSection.innerHTML = "Chargement...";
 
-  const data = await fetchWebtoon("webtoon");
+  // 🔥 requêtes qui marchent vraiment
+  const queries = ["solo", "love", "tower", "hero"];
+
+  let allResults = [];
+
+  for (let q of queries) {
+    const res = await fetchWebtoon(q);
+    allResults = [...allResults, ...res];
+  }
+
+  // enlever les doublons
+  const unique = [];
+  const ids = new Set();
+
+  for (let item of allResults) {
+    if (!ids.has(item.id)) {
+      ids.add(item.id);
+      unique.push(item);
+    }
+  }
 
   webtoonSection.innerHTML = "";
 
-  if (!data.length) {
-    webtoonSection.innerHTML = "<p>Aucun webtoon trouvé 😢</p>";
+  if (!unique.length) {
+    webtoonSection.innerHTML = "<p>Impossible de charger les webtoons 😢</p>";
     return;
   }
 
-  data.forEach((webtoon) => {
+  unique.slice(0, 20).forEach((webtoon) => {
     webtoonSection.appendChild(createAnimeCard(webtoon));
   });
 }
