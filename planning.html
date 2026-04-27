@@ -1,33 +1,48 @@
-<!DOCTYPE html>    <html lang="fr">    
+<!DOCTYPE html>
+<html lang="fr">    
 <head>    
-<meta charset="UTF-8">    
-<meta name="viewport" content="width=device-width, initial-scale=1.0">    
-<title>Planning - Kurolist</title>    
-<link rel="stylesheet" href="style.css">    
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-</head>    <body>    <header class="site-header">
-    <div class="header-row">
-        <div class="menu-hamburger" id="hamburger">&#9776;</div>
+    <meta charset="UTF-8">    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
+    <title>Planning - Kurolist</title>    
+    <link rel="stylesheet" href="style.css">    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>    
+<body>    
+    <header class="site-header">
+        <div class="header-row">
+            <div class="menu-hamburger" id="hamburger">&#9776;</div>
+            <h1 class="page-title"></h1>
+            <img src="logo.svg" alt="Kurolist" class="site-logo">
+        </div>
 
-        <h1 class="page-title"></h1>
+        <nav id="side-menu" class="side-menu">
+            <a href="#" id="close-menu" class="close-btn">✕ Fermer</a>
+            <a href="index.html"><i class="fa-solid fa-house"></i> Accueil</a>
+            <a href="mylist.html"><i class="fa-solid fa-book"></i> Ma Liste</a>
+            <a href="favorites.html"><i class="fa-solid fa-star"></i> Favoris</a>
+            <a href="planning.html"><i class="fa-solid fa-calendar-days"></i> Planning</a>
+            <a href="catalogue.html"><i class="fa-solid fa-table-cells-large"></i> Catalogue</a>
+            <a href="characters.html"><i class="fa-solid fa-user"></i> Personnages</a>
+            <a href="settings.html"><i class="fa-solid fa-gear"></i> Paramètres</a>
+        </nav>
+    </header>  
 
-        <img src="logo.svg" alt="Kurolist" class="site-logo">
-    </div>
+    <main>  
+        <div class="tabs-container" style="text-align: center; margin: 20px 0;">
+            <button id="btn-anime" class="active" style="padding: 10px 20px; cursor: pointer;">Planning Animes</button>
+            <button id="btn-manga" style="padding: 10px 20px; cursor: pointer;">Planning mangas</button>
+        </div>
 
-    <nav id="side-menu" class="side-menu">
-        <a href="#" id="close-menu" class="close-btn">✕ Fermer</a>
+        <section id="weekly-planning"></section>    
 
-        <a href="index.html"><i class="fa-solid fa-house"></i> Accueil</a>
-        <a href="mylist.html"><i class="fa-solid fa-book"></i> Ma Liste</a>
-        <a href="favorites.html"><i class="fa-solid fa-star"></i> Favoris</a>
-        <a href="planning.html"><i class="fa-solid fa-calendar-days"></i> Planning</a>
-        <a href="catalogue.html"><i class="fa-solid fa-table-cells-large"></i> Catalogue</a>
-        <a href="characters.html"><i class="fa-solid fa-user"></i> Personnages</a>
-        <a href="settings.html"><i class="fa-solid fa-gear"></i> Paramètres</a>
-    </nav>
-</header>  <main>    
-    <section id="weekly-planning"></section>    
-</main>    <footer>    
-    <p>Kurolist © 2026</p>    
-</footer>    <script src="script.js"></script>    <script src="planning.js"></script>    </body>    
+        <section id="manga-planning" style="display: none;"></section>
+    </main>    
+
+    <footer>    
+        <p>Kurolist © 2026</p>    
+    </footer>    
+
+    <script src="script.js"></script>    
+    <script src="planning.js"></script>    
+</body>    
 </html>
