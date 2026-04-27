@@ -25,112 +25,109 @@ document.addEventListener("DOMContentLoaded", () => {
         btnAnime.classList.remove('active');
         weeklySection.style.display = 'none';
         mangaSection.style.display = 'block';
-        if (!mangaSection.innerHTML || mangaSection.innerHTML.includes("Chargement")) initManga();
+        
+        // On charge les mangas seulement si la section est vide
+        if (!mangaSection.innerHTML || mangaSection.innerHTML.includes("Chargement")) {
+            initManga();
+        }
     });
 
+    // --- CACHE ---
     function isCacheValid(storageKey) {    
         const savedTime = localStorage.getItem(storageKey);    
         if (!savedTime) return false;    
-        return (Date.now() - parseInt(savedTime)) < (7 * 24 * 60 * 60 * 1000);    
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;    
+        return (Date.now() - parseInt(savedTime)) < oneWeek;    
     }    
 
-    // --- LOGIQUE ANIME (SORTIES DE LA SEMAINE) ---
-    async function fetchAnimeSchedule() {    
-        weeklySection.innerHTML = "<p>Chargement des sorties de la semaine...</p>";    
-        
-        const now = new Date();
-        const startOfWeek = new Date(now.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1)));
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(endOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
+    // --- LOGIQUE ANIME (VERSION ORIGINALE) ---
+    function displayPlanning(data) {    
+        const grid = document.createElement('div');    
+        grid.className = 'calendar-grid';    
+
+        data.forEach(dayData => {    
+            const column = document.createElement('div');    
+            column.className = 'day-column';    
+            column.innerHTML = `<h2>${daysFR[dayData.day]}</h2>`;    
+
+            dayData.animes.forEach(anime => {    
+                const card = document.createElement('div');    
+                card.className = 'calendar-card';    
+                card.innerHTML = `    
+                    <img src="${anime.img}">    
+                    <p>${anime.title}</p>    
+                `;    
+                column.appendChild(card);    
+            });    
+            grid.appendChild(column);    
+        });    
+
+        weeklySection.innerHTML = '';    
+        weeklySection.appendChild(grid);    
+    }    
+
+    async function fetchWeeklySchedule() {    
+        weeklySection.innerHTML = "<p>Chargement...</p>";    
+        const usedAnime = new Set();    
 
         const query = `    
-        query ($start: Int, $end: Int) {
-          Page(page: 1, perPage: 100) {
-            airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
-              airingAt
-              episode
-              media {
-                id
-                title { romaji }
-                coverImage { large }
-              }
-            }
-          }
-        }`;
-
-        const variables = { 
-            start: Math.floor(startOfWeek.getTime() / 1000), 
-            end: Math.floor(endOfWeek.getTime() / 1000) 
-        };
+        query ($page: Int) {    
+          Page(page: $page, perPage: 100) {    
+            media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC) {    
+              id    
+              title { romaji }    
+              coverImage { large }    
+              airingSchedule { nodes { airingAt } }    
+            }    
+          }    
+        }`;    
 
         try {
             const res = await fetch("https://graphql.anilist.co", {    
                 method: "POST",    
                 headers: { "Content-Type": "application/json" },    
-                body: JSON.stringify({ query, variables })    
+                body: JSON.stringify({ query, variables: { page: 1 } })    
             });    
 
             const data = await res.json();    
-            const schedules = data.data.Page.airingSchedules;    
+            const animes = data.data.Page.media;    
             const allData = days.map(day => ({ day, animes: [] }));    
-            const usedAnime = new Set();
 
-            schedules.forEach(s => {    
-                if (!s.media || usedAnime.has(s.media.id)) return;    
-                usedAnime.add(s.media.id);    
+            animes.forEach(anime => {    
+                if (usedAnime.has(anime.id)) return;    
+                usedAnime.add(anime.id);    
 
-                const dayFound = mapDays[new Date(s.airingAt * 1000).getDay()];    
+                let dayFound = "monday"; // Fallback par défaut
+                const schedule = anime.airingSchedule?.nodes?.[0];    
+
+                if (schedule) {    
+                    dayFound = mapDays[new Date(schedule.airingAt * 1000).getDay()];    
+                }    
+
                 const targetDay = allData.find(d => d.day === dayFound);    
-                if (targetDay) {    
-                    targetDay.animes.push({ 
-                        title: s.media.title.romaji, 
-                        img: s.media.coverImage.large,
-                        ep: s.episode
-                    });    
+                if (targetDay.animes.length < 40) {    
+                    targetDay.animes.push({ title: anime.title.romaji, img: anime.coverImage.large });    
                 }    
             });    
 
-            localStorage.setItem("planning_anime_data", JSON.stringify(allData));    
-            localStorage.setItem("planning_anime_time", Date.now());    
-            displayAnimePlanning(allData);
-        } catch (e) { console.error(e); }
-    }
-
-    function displayAnimePlanning(data) {    
-        const grid = document.createElement('div');    
-        grid.className = 'calendar-grid';    
-        data.forEach(dayData => {    
-            const column = document.createElement('div');    
-            column.className = 'day-column';    
-            column.innerHTML = `<h2>${daysFR[dayData.day]}</h2>`;    
-            dayData.animes.forEach(anime => {    
-                const card = document.createElement('div');    
-                card.className = 'calendar-card';    
-                card.innerHTML = `<img src="${anime.img}"><p>${anime.title}</p><span>. ${anime.ep}</span>`;    
-                column.appendChild(card);    
+            // Remplissage si jours vides (ton ancienne logique)
+            allData.forEach(day => {    
+                if (day.animes.length === 0) {    
+                    day.animes = animes.slice(0, 20).map(a => ({ title: a.title.romaji, img: a.coverImage.large }));    
+                }    
             });    
-            grid.appendChild(column);    
-        });    
-        weeklySection.innerHTML = '';    
-        weeklySection.appendChild(grid);    
+
+            localStorage.setItem("planning_data", JSON.stringify(allData));    
+            localStorage.setItem("planning_time", Date.now());    
+            displayPlanning(allData);
+
+        } catch (error) {
+            console.error(error);
+            weeklySection.innerHTML = "<p>Erreur de chargement.</p>";
+        }
     }
 
     // --- LOGIQUE MANGA ---
-    async function fetchMangaSchedule() {
-        mangaSection.innerHTML = "<p>Chargement des mangas populaires...</p>";
-        const query = `query { Page(page: 1, perPage: 50) { media(type: MANGA, status: RELEASING, sort: POPULARITY_DESC) { title { romaji } coverImage { large } } } }`;
-        try {
-            const res = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
-            const data = await res.json();
-            const mangas = data.data.Page.media;
-            localStorage.setItem("planning_manga_data", JSON.stringify(mangas));
-            localStorage.setItem("planning_manga_time", Date.now());
-            displayMangaPlanning(mangas);
-        } catch (e) { console.error(e); }
-    }
-
     function displayMangaPlanning(mangas) {
         mangaSection.innerHTML = '<div class="calendar-grid"></div>';
         const grid = mangaSection.querySelector('.calendar-grid');
@@ -142,17 +139,42 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    async function fetchMangaSchedule() {
+        mangaSection.innerHTML = "<p>Chargement des mangas...</p>";
+        const query = `query { Page(page: 1, perPage: 50) { media(type: MANGA, status: RELEASING, sort: POPULARITY_DESC) { title { romaji } coverImage { large } } } }`;
+        try {
+            const res = await fetch("https://graphql.anilist.co", { 
+                method: "POST", 
+                headers: { "Content-Type": "application/json" }, 
+                body: JSON.stringify({ query }) 
+            });
+            const data = await res.json();
+            const mangas = data.data.Page.media;
+            localStorage.setItem("manga_data", JSON.stringify(mangas));
+            localStorage.setItem("manga_time", Date.now());
+            displayMangaPlanning(mangas);
+        } catch (e) { console.error(e); }
+    }
+
+    // --- INITIALISATION ---
     function initAnime() {
-        const saved = localStorage.getItem("planning_anime_data");
-        if (isCacheValid("planning_anime_time") && saved) displayAnimePlanning(JSON.parse(saved));
-        else fetchAnimeSchedule();
+        const savedData = localStorage.getItem("planning_data");    
+        if (isCacheValid("planning_time") && savedData) {    
+            displayPlanning(JSON.parse(savedData));    
+        } else {    
+            fetchWeeklySchedule();    
+        }
     }
 
     function initManga() {
-        const saved = localStorage.getItem("planning_manga_data");
-        if (isCacheValid("planning_manga_time") && saved) displayMangaPlanning(JSON.parse(saved));
-        else fetchMangaSchedule();
+        const savedData = localStorage.getItem("manga_data");
+        if (isCacheValid("manga_time") && savedData) {
+            displayMangaPlanning(JSON.parse(savedData));
+        } else {
+            fetchMangaSchedule();
+        }
     }
 
+    // Lancement par défaut sur les animes
     initAnime();
 });
