@@ -65,39 +65,61 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function fetchFullDetails(id) {
+        async function fetchFullDetails(id) {
         try {
             const res = await fetch(`https://api.jikan.moe/v4/characters/${id}/full`);
+            
+            // Sécurité : Jikan API limite le nombre de requêtes. Si on va trop vite, on stoppe proprement.
+            if (res.status === 429) {
+                console.warn("Limite de l'API atteinte pour le personnage ID : " + id);
+                return;
+            }
+
             const data = await res.json();
             const full = data.data;
             const detailDiv = document.getElementById(`detail-${id}`);
 
-            if (!detailDiv) return;
+            if (!detailDiv || !full) return;
 
-            // Déterminer l'origine (Anime d'abord, sinon Manga)
+            // 1. Déterminer l'origine exacte (Anime, Manga ou Webtoon)
             let origin = "Non spécifiée";
+            let mediaType = "Origine";
+            let icon = "🎬";
+
             if (full.anime && full.anime.length > 0) {
                 origin = full.anime[0].anime.title;
+                mediaType = "Anime";
+                icon = "📺";
             } else if (full.manga && full.manga.length > 0) {
                 origin = full.manga[0].manga.title;
+                mediaType = "Manga / Webtoon";
+                icon = "📚";
             }
 
-            // Trouver la voix japonaise (Seiyuu)
+            // 2. Trouver la voix japonaise (Seiyuu)
             const voice = full.voices?.find(v => v.language === "Japanese")?.person.name || "Inconnue";
 
-            // Mise à jour de la carte avec les informations finales
+            // 3. Mise à jour de la carte avec les informations finales
             detailDiv.innerHTML = `
                 <h3>${full.name}</h3>
-                <p><strong>🎬 Origine :</strong> ${origin}</p>
+                <p><strong>${icon} ${mediaType} :</strong> ${origin}</p>
                 <p><strong>🎙️ Voix JP :</strong> ${voice}</p>
                 <p style="font-size: 11px; color: #aaa; margin-top: 5px;">
-                    ${full.about ? full.about.substring(0, 70) + "..." : "Pas de description."}
+                    ${full.about ? full.about.substring(0, 75) + "..." : "Pas de description."}
                 </p>
             `;
         } catch (err) {
             console.warn("Impossible de charger les détails pour l'ID : " + id);
+            const detailDiv = document.getElementById(`detail-${id}`);
+            if (detailDiv) {
+                detailDiv.innerHTML = `
+                    <h3>${detailDiv.querySelector('h3')?.innerText || 'Personnage'}</h3>
+                    <p style="color: #ff5555; font-size: 12px;">Détails indisponibles</p>
+                `;
+            }
         }
     }
+
 
     // Gestion de la saisie avec délai (debounce)
     let typingTimer;
