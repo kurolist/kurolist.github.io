@@ -2,8 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
   /////////////////////////////
   // HELPERS
   /////////////////////////////
-  
-  // TRADUCTEUR AUTOMATIQUE ANGLAIS -> FRANÇAIS
   async function translateToFrench(text) {
     if (!text || text === "Pas de résumé.") return text;
     try {
@@ -11,53 +9,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch(url);
       const data = await res.json();
       return data[0].map(segment => segment[0]).join('');
-    } catch (e) {
-      console.error("Erreur de traduction:", e);
-      return text;
-    }
+    } catch (e) { return text; }
   }
 
-  const safeJsonParse = (value, fallback) => {
-    try {
-      return value ? JSON.parse(value) : fallback;
-    } catch {
-      return fallback;
-    }
+  const safeJsonParse = (value, fallback) => { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } };
+  
+  // On récupère les réglages (hideNSFW est true par défaut)
+  const getSettings = () => { 
+    const defaults = { hideNSFW: true }; 
+    return { ...defaults, ...safeJsonParse(localStorage.getItem("settings"), defaults) }; 
   };
 
-  const getSettings = () => {
-    const defaults = { hideNSFW: true };
-    return {
-      ...defaults,
-      ...safeJsonParse(localStorage.getItem("settings"), defaults),
-    };
-  };
-
-  const normalize = (text = "") =>
-    String(text)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
-
-  const debounce = (fn, delay = 300) => {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  };
-
-  const escapeHtml = (value = "") =>
-    String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-
-  const getItemId = (item) =>
-    String(item?.mal_id ?? item?.id ?? item?.title ?? Math.random());
+  const normalize = (text = "") => String(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const debounce = (fn, delay = 300) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };
+  const escapeHtml = (value = "") => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const getItemId = (item) => String(item?.mal_id ?? item?.id ?? item?.title ?? Math.random());
 
   const getItemTypeLabel = (item) => {
     if (item?.source === "anime") return "Anime";
@@ -67,37 +33,17 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const getGenresText = (item) => {
-    const genres = [
-      ...(item?.genres || []),
-      ...(item?.explicit_genres || []),
-      ...(item?.themes || []),
-      ...(item?.demographics || []),
-    ]
-      .map((g) => g?.name)
-      .filter(Boolean);
-
+    const genres = [ ...(item?.genres || []), ...(item?.explicit_genres || []), ...(item?.themes || []), ...(item?.demographics || []) ]
+      .map((g) => g?.name).filter(Boolean);
     const unique = [...new Set(genres)];
     return unique.length ? unique.join(" • ") : "N/A";
   };
 
   const getSynopsis = (item) => {
     if (!item) return "Pas de résumé.";
-    if (typeof item.synopsis === "string" && item.synopsis.trim()) return item.synopsis.trim();
-
-    if (item.description && typeof item.description === "string" && item.description.trim()) {
-      return item.description.trim();
-    }
-
-    if (item.attributes?.description) {
-      const desc = item.attributes.description;
-      if (typeof desc === "string" && desc.trim()) return desc.trim();
-      if (desc?.fr) return desc.fr.trim(); // Priorité au français
-      if (desc?.en) return desc.en.trim();
-      const firstDesc = Object.values(desc).find((v) => typeof v === "string" && v.trim());
-      if (firstDesc) return firstDesc.trim();
-    }
-
-    return "Pas de résumé.";
+    let d = item.synopsis || item.description || item.attributes?.description;
+    if (typeof d === "object") return d.fr || d.en || "Pas de résumé.";
+    return d || "Pas de résumé.";
   };
 
   const getTrailerInfo = (item) => {
@@ -109,59 +55,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function injectCardStyles() {
     if (document.getElementById("kuro-card-style")) return;
-
     const style = document.createElement("style");
     style.id = "kuro-card-style";
     style.textContent = `
-      .anime-card{
-        cursor:pointer;
-        overflow:hidden;
-        border-radius:16px;
-        background:#17172a;
-        box-shadow:0 8px 24px rgba(0,0,0,.14);
-        transition:transform .18s ease, box-shadow .18s ease;
-        max-width:180px;
-      }
-      .anime-card:hover{
-        transform:translateY(-3px);
-        box-shadow:0 12px 30px rgba(0,0,0,.22);
-      }
-      .anime-card img{
-        width:100%;
-        aspect-ratio:2 / 3;
-        object-fit:cover;
-        display:block;
-        background:#111;
-      }
-      .anime-info{
-        padding:10px;
-      }
-      .anime-info h3{
-        font-size:13px;
-        line-height:1.2;
-        margin:0 0 6px;
-      }
-      .anime-info p{
-        font-size:12px;
-        margin:3px 0;
-        opacity:.92;
-      }
-      .buttons{
-        display:flex;
-        gap:6px;
-        flex-wrap:wrap;
-        margin-top:8px;
-      }
-      .buttons button{
-        border:0;
-        border-radius:10px;
-        padding:6px 8px;
-        font-size:11px;
-        cursor:pointer;
-      }
-      @media (max-width: 700px){
-        .anime-card{ max-width: 100%; }
-      }
+      .anime-card{ cursor:pointer; overflow:hidden; border-radius:16px; background:#17172a; box-shadow:0 8px 24px rgba(0,0,0,.14); transition:transform .18s ease, box-shadow .18s ease; max-width:180px; }
+      .anime-card:hover{ transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,.22); }
+      .anime-card img{ width:100%; aspect-ratio:2 / 3; object-fit:cover; display:block; background:#111; }
+      .anime-info{ padding:10px; }
+      .anime-info h3{ font-size:13px; line-height:1.2; margin:0 0 6px; }
+      .anime-info p{ font-size:12px; margin:3px 0; opacity:.92; }
+      .buttons{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+      .buttons button{ border:0; border-radius:10px; padding:6px 8px; font-size:11px; cursor:pointer; background: #2a2a3d; color: #fff; }
+      .kuro-select { background: #1a1a2e; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 5px; font-size: 12px; cursor: pointer; }
+      @media (max-width: 700px){ .anime-card{ max-width: 100%; } }
     `;
     document.head.appendChild(style);
   }
@@ -174,29 +80,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeBtn = document.getElementById("close-menu");
 
   if (hamburger && sideMenu) {
-    hamburger.addEventListener("click", (e) => {
-      e.stopPropagation();
-      sideMenu.classList.toggle("open");
-    });
-
-    closeBtn?.addEventListener("click", (e) => {
-      e.preventDefault();
-      sideMenu.classList.remove("open");
-    });
-
-    document.addEventListener("click", (e) => {
-      if (
-        sideMenu.classList.contains("open") &&
-        !sideMenu.contains(e.target) &&
-        !hamburger.contains(e.target)
-      ) {
-        sideMenu.classList.remove("open");
-      }
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") sideMenu.classList.remove("open");
-    });
+    hamburger.addEventListener("click", (e) => { e.stopPropagation(); sideMenu.classList.toggle("open"); });
+    closeBtn?.addEventListener("click", (e) => { e.preventDefault(); sideMenu.classList.remove("open"); });
   }
 
   /////////////////////////////
@@ -205,6 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("catalogue-search");
   const resultsContainer = document.getElementById("catalogue-results");
   const typeFilters = document.querySelectorAll(".type-filter");
+  const genreFilter = document.getElementById("genre-filter");
+  const scoreFilter = document.getElementById("score-filter");
+  const sortFilter = document.getElementById("sort-filter");
 
   let myAnimeList = safeJsonParse(localStorage.getItem("myAnimeList"), []);
   let myFavorites = safeJsonParse(localStorage.getItem("myFavorites"), []);
@@ -213,196 +101,57 @@ document.addEventListener("DOMContentLoaded", () => {
   // MODAL
   /////////////////////////////
   let detailsModal = null;
-
   function injectModalStyles() {
     if (document.getElementById("kuro-details-style")) return;
-
     const style = document.createElement("style");
     style.id = "kuro-details-style";
     style.textContent = `
-      .kuro-modal-backdrop{
-        position:fixed;
-        inset:0;
-        background:rgba(0,0,0,.72);
-        display:none;
-        align-items:center;
-        justify-content:center;
-        padding:18px;
-        z-index:20000;
-      }
+      .kuro-modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; padding:18px; z-index:20000; }
       .kuro-modal-backdrop.open{ display:flex; }
-      .kuro-modal{
-        width:min(900px,100%);
-        max-height:92vh;
-        overflow:auto;
-        background:#1a1a2e;
-        border:1px solid rgba(255,255,255,.08);
-        border-radius:18px;
-        box-shadow:0 20px 60px rgba(0,0,0,.55);
-        color:#fff;
-      }
-      .kuro-modal-header{
-        display:flex;
-        justify-content:space-between;
-        gap:12px;
-        align-items:flex-start;
-        padding:16px 16px 0 16px;
-      }
-      .kuro-modal-title{
-        margin:0;
-        font-size:22px;
-        line-height:1.2;
-      }
-      .kuro-modal-close{
-        border:0;
-        background:#2a2a3d;
-        color:#fff;
-        border-radius:999px;
-        padding:8px 12px;
-        cursor:pointer;
-      }
-      .kuro-modal-body{
-        display:grid;
-        grid-template-columns:220px 1fr;
-        gap:16px;
-        padding:16px;
-      }
-      .kuro-modal-cover{
-        width:100%;
-        border-radius:14px;
-        object-fit:cover;
-        background:#111;
-        min-height:310px;
-      }
-      .kuro-modal-meta{
-        display:grid;
-        gap:10px;
-      }
-      .kuro-pill-row{
-        display:flex;
-        flex-wrap:wrap;
-        gap:8px;
-      }
-      .kuro-pill{
-        display:inline-block;
-        background:rgba(0,173,181,.16);
-        color:#7ce8ee;
-        border:1px solid rgba(0,173,181,.22);
-        padding:4px 10px;
-        border-radius:999px;
-        font-size:12px;
-      }
-      .kuro-modal-meta p{
-        margin:0;
-        color:#ddd;
-        line-height:1.5;
-      }
-      .kuro-modal-meta strong{
-        color:#fff;
-      }
-      .kuro-modal-actions{
-        display:flex;
-        flex-wrap:wrap;
-        gap:10px;
-        margin-top:4px;
-      }
-      .kuro-modal-actions button,
-      .kuro-modal-actions a{
-        border:0;
-        background:#00adb5;
-        color:#fff;
-        text-decoration:none;
-        border-radius:10px;
-        padding:9px 12px;
-        cursor:pointer;
-      }
-      .kuro-trailer{
-        margin-top:10px;
-        aspect-ratio:16 / 9;
-        width:100%;
-        border:0;
-        border-radius:14px;
-        background:#000;
-      }
-      .kuro-trailer-empty{
-        margin-top:10px;
-        padding:12px;
-        border-radius:12px;
-        background:#111827;
-        color:#b7b7c9;
-      }
-      @media (max-width: 760px){
-        .kuro-modal-body{ grid-template-columns:1fr; }
-        .kuro-modal-cover{ min-height:240px; }
-      }
+      .kuro-modal{ width:min(900px,100%); max-height:92vh; overflow:auto; background:#1a1a2e; border:1px solid rgba(255,255,255,.08); border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,.55); color:#fff; }
+      .kuro-modal-header{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:16px 16px 0 16px; }
+      .kuro-modal-title{ margin:0; font-size:22px; line-height:1.2; }
+      .kuro-modal-close{ border:0; background:#2a2a3d; color:#fff; border-radius:999px; padding:8px 12px; cursor:pointer; }
+      .kuro-modal-body{ display:grid; grid-template-columns:220px 1fr; gap:16px; padding:16px; }
+      .kuro-modal-cover{ width:100%; border-radius:14px; object-fit:cover; background:#111; min-height:310px; }
+      .kuro-modal-meta{ display:grid; gap:10px; }
+      .kuro-pill-row{ display:flex; flex-wrap:wrap; gap:8px; }
+      .kuro-pill{ display:inline-block; background:rgba(0,173,181,.16); color:#7ce8ee; border:1px solid rgba(0,173,181,.22); padding:4px 10px; border-radius:999px; font-size:12px; }
+      .kuro-modal-actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+      .kuro-modal-actions button{ border:0; background:#00adb5; color:#fff; border-radius:10px; padding:9px 12px; cursor:pointer; }
+      .kuro-trailer{ margin-top:10px; aspect-ratio:16 / 9; width:100%; border:0; border-radius:14px; background:#000; }
+      @media (max-width: 760px){ .kuro-modal-body{ grid-template-columns:1fr; } }
     `;
     document.head.appendChild(style);
   }
 
-  function closeDetailsModal() {
-    if (detailsModal) detailsModal.classList.remove("open");
-  }
+  function closeDetailsModal() { if (detailsModal) detailsModal.classList.remove("open"); }
 
   async function openDetailsModal(item) {
     injectModalStyles();
-
     if (!detailsModal) {
       detailsModal = document.createElement("div");
       detailsModal.className = "kuro-modal-backdrop";
-      detailsModal.innerHTML = `
-        <div class="kuro-modal" role="dialog" aria-modal="true" aria-labelledby="kuro-modal-title">
-          <div class="kuro-modal-header">
-            <h2 class="kuro-modal-title" id="kuro-modal-title"></h2>
-            <button class="kuro-modal-close" type="button">✕</button>
-          </div>
-          <div class="kuro-modal-body">
-            <img class="kuro-modal-cover" alt="">
-            <div class="kuro-modal-meta"></div>
-          </div>
-        </div>
-      `;
+      detailsModal.innerHTML = `<div class="kuro-modal"><div class="kuro-modal-header"><h2 class="kuro-modal-title" id="kuro-modal-title"></h2><button class="kuro-modal-close">✕</button></div><div class="kuro-modal-body"><img class="kuro-modal-cover" alt=""><div class="kuro-modal-meta"></div></div></div>`;
       document.body.appendChild(detailsModal);
-
-      detailsModal.addEventListener("click", (e) => {
-        if (e.target === detailsModal) closeDetailsModal();
-      });
-
-      detailsModal.querySelector(".kuro-modal-close").addEventListener("click", closeDetailsModal);
-
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeDetailsModal();
-      });
+      detailsModal.onclick = (e) => { if(e.target === detailsModal) closeDetailsModal(); };
+      detailsModal.querySelector(".kuro-modal-close").onclick = closeDetailsModal;
     }
-
     const titleEl = detailsModal.querySelector("#kuro-modal-title");
     const coverEl = detailsModal.querySelector(".kuro-modal-cover");
     const metaEl = detailsModal.querySelector(".kuro-modal-meta");
-
-    const title = item?.title || "Sans titre";
-    const type = getItemTypeLabel(item);
-    const score = item?.score ?? item?.mean ?? "N/A";
-    const genres = getGenresText(item);
-    const synopsisRaw = getSynopsis(item);
-    const img =
-      item?.images?.jpg?.image_url ||
-      item?.images?.webp?.large_image_url ||
-      item?.cover ||
-      item?.image ||
-      "https://via.placeholder.com/300x450?text=Kurolist";
-
     const trailer = getTrailerInfo(item);
 
-    titleEl.textContent = title;
-    coverEl.src = img;
-    coverEl.alt = title;
-
+    titleEl.textContent = item?.title || "Sans titre";
+    coverEl.src = item?.images?.jpg?.image_url || item?.cover || "https://via.placeholder.com/300x450";
+    
     metaEl.innerHTML = `
       <div class="kuro-pill-row">
-        <span class="kuro-pill">${escapeHtml(type)}</span>
-        <span class="kuro-pill">Note : ${escapeHtml(String(score))}</span>
+        <span class="kuro-pill">${escapeHtml(getItemTypeLabel(item))}</span>
+        <span class="kuro-pill">Note : ${escapeHtml(String(item?.score ?? item?.mean ?? "N/A"))}</span>
       </div>
-      <p><strong>Genres :</strong> ${escapeHtml(genres)}</p>
-      <p><strong>Résumé :</strong> <span id="kuro-synopsis">Traduction en cours... ⏳</span></p>
+      <p><strong>Genres :</strong> ${escapeHtml(getGenresText(item))}</p>
+      <p><strong>Résumé :</strong> <span id="kuro-synopsis">Traduction... ⏳</span></p>
       <div class="kuro-modal-actions">
         <button type="button" class="add-list-modal">Ma liste</button>
         <button type="button" class="add-fav-modal">Favoris</button>
@@ -411,33 +160,15 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     const trailerSlot = metaEl.querySelector(".trailer-slot");
-    if (trailer?.embedUrl) {
-      trailerSlot.innerHTML = `
-        <iframe
-          class="kuro-trailer"
-          src="${trailer.embedUrl}"
-          title="Trailer"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-        ></iframe>
-      `;
-    } else {
-      trailerSlot.innerHTML = `
-        <div class="kuro-trailer-empty">Aucun trailer disponible pour cette entrée.</div>
-      `;
-    }
+    if (trailer?.embedUrl) trailerSlot.innerHTML = `<iframe class="kuro-trailer" src="${trailer.embedUrl}" allowfullscreen></iframe>`;
+    else trailerSlot.innerHTML = `<div class="kuro-trailer-empty" style="color:#aaa; font-size:12px; margin-top:10px;">Aucun trailer disponible.</div>`;
 
-    metaEl.querySelector(".add-list-modal").addEventListener("click", () => addToMyList(item));
-    metaEl.querySelector(".add-fav-modal").addEventListener("click", () => addToFavorites(item));
+    metaEl.querySelector(".add-list-modal").onclick = () => addToMyList(item);
+    metaEl.querySelector(".add-fav-modal").onclick = () => addToFavorites(item);
 
     detailsModal.classList.add("open");
-
-    // Lancement de la traduction en arrière-plan
-    const translatedSynopsis = await translateToFrench(synopsisRaw);
-    const synopsisEl = detailsModal.querySelector("#kuro-synopsis");
-    if (synopsisEl) {
-      synopsisEl.textContent = translatedSynopsis;
-    }
+    const trans = await translateToFrench(getSynopsis(item));
+    if (detailsModal.querySelector("#kuro-synopsis")) detailsModal.querySelector("#kuro-synopsis").textContent = trans;
   }
 
   /////////////////////////////
@@ -445,282 +176,178 @@ document.addEventListener("DOMContentLoaded", () => {
   /////////////////////////////
   function addToMyList(item) {
     const id = getItemId(item);
-    const exists = myAnimeList.some((a) => String(a.mal_id ?? a.id ?? a.title) === id);
-
-    if (!exists) {
-      myAnimeList.push({
-        ...item,
-        mal_id: item?.mal_id ?? item?.id ?? id,
-        source: item?.source || "anime",
-        listStatus: "plan",
-      });
+    if (!myAnimeList.some((a) => getItemId(a) === id)) {
+      myAnimeList.push({ ...item, mal_id: id, listStatus: "plan" });
       localStorage.setItem("myAnimeList", JSON.stringify(myAnimeList));
-      alert("Ajouté à ta liste !");
+      alert("Ajouté !");
     }
   }
 
   function addToFavorites(item) {
     const id = getItemId(item);
-    const exists = myFavorites.some((a) => String(a.mal_id ?? a.id ?? a.title) === id);
-
-    if (!exists) {
-      myFavorites.push({
-        ...item,
-        mal_id: item?.mal_id ?? item?.id ?? id,
-        source: item?.source || "anime",
-      });
+    if (!myFavorites.some((a) => getItemId(a) === id)) {
+      myFavorites.push({ ...item, mal_id: id });
       localStorage.setItem("myFavorites", JSON.stringify(myFavorites));
-      alert("Ajouté aux favoris !");
+      alert("Favori ajouté !");
     }
   }
 
   /////////////////////////////
   // FETCH
   /////////////////////////////
-  async function fetchJikan(query) {
+  async function fetchJikan(query, types = []) {
+    const wantsAnime = types.length === 0 || types.includes("anime");
+    const wantsManga = types.length === 0 || types.includes("manga");
+    const requests = [];
     try {
-      const [animeRes, mangaRes] = await Promise.all([
-        fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=25`),
-        fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=25`),
-      ]);
-
-      const animeData = await animeRes.json();
-      const mangaData = await mangaRes.json();
-
-      return [
-        ...(animeData.data || []).map((i) => ({ ...i, source: "anime" })),
-        ...(mangaData.data || []).map((i) => ({ ...i, source: "manga" })),
-      ];
-    } catch {
-      return [];
-    }
+      if (query) {
+        if (wantsAnime) requests.push(fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=25`).then(r => r.json()));
+        if (wantsManga) requests.push(fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=25`).then(r => r.json()));
+      } else {
+        if (wantsAnime) requests.push(fetch(`https://api.jikan.moe/v4/top/anime?limit=25`).then(r => r.json()));
+        if (wantsManga) requests.push(fetch(`https://api.jikan.moe/v4/top/manga?limit=25`).then(r => r.json()));
+      }
+      const results = await Promise.all(requests);
+      let finalData = [];
+      if (wantsAnime && results[0]) finalData.push(...(results[0].data || []).map(i => ({ ...i, source: "anime" })));
+      const mIdx = wantsAnime ? 1 : 0;
+      if (wantsManga && results[mIdx]) finalData.push(...(results[mIdx].data || []).map(i => ({ ...i, source: "manga" })));
+      return finalData;
+    } catch { return []; }
   }
 
-  async function fetchWebtoon(query) {
+  async function fetchWebtoon(query, types = []) {
+    if (types.length > 0 && !types.includes("webtoon")) return [];
     try {
-      const res = await fetch(
-        `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=20&includes[]=cover_art`
-      );
+      const url = query ? `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=25&includes[]=cover_art` : `https://api.mangadex.org/manga?limit=25&includes[]=cover_art&order[followedCount]=desc`;
+      const res = await fetch(url);
       const data = await res.json();
-
       if (!data.data) return [];
-
       return data.data.map((i) => {
-        const attrs = i.attributes || {};
-        const titleObj = attrs.title || {};
-        const title = titleObj.en || Object.values(titleObj)[0] || "No title";
-
-        let image = "https://via.placeholder.com/300x450?text=Kurolist";
-        const cover = i.relationships?.find((r) => r.type === "cover_art");
-        if (cover?.attributes?.fileName) {
-          image = `https://uploads.mangadex.org/covers/${i.id}/${cover.attributes.fileName}.512.jpg`;
-        }
-
-        const description = attrs.description || {};
-        const synopsis =
-          description.fr || // Priorité au français
-          description.en ||
-          Object.values(description).find((v) => typeof v === "string" && v.trim()) ||
-          "Pas de résumé.";
-
-        const tags =
-          (attrs.tags || [])
-            .map((t) => t?.attributes?.name?.en || Object.values(t?.attributes?.name || {})[0])
-            .filter(Boolean) || [];
-
+        const cover = i.relationships?.find((r) => r.type === "cover_art")?.attributes?.fileName;
         return {
-          id: i.id,
-          mal_id: i.id,
-          source: "webtoon",
-          title,
-          type: "Webtoon",
-          score: attrs.rating || attrs.score || 0,
-          synopsis,
-          genres: tags.map((name) => ({ name })),
-          images: { jpg: { image_url: image } },
+          id: i.id, mal_id: i.id, source: "webtoon", title: i.attributes.title.en || Object.values(i.attributes.title)[0],
+          type: "Webtoon", score: 0, synopsis: i.attributes.description.fr || i.attributes.description.en || "Pas de résumé.",
+          genres: i.attributes.tags.map(t => ({ name: t.attributes.name.en })),
+          images: { jpg: { image_url: cover ? `https://uploads.mangadex.org/covers/${i.id}/${cover}.512.jpg` : "" } }
         };
       });
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
 
-  async function loadData(query) {
-    if (!query) {
-      const random = ["a", "love", "one", "the", "star"];
-      const randomQuery = random[Math.floor(Math.random() * random.length)];
-      const [jikan, webtoon] = await Promise.all([fetchJikan(randomQuery), fetchWebtoon(randomQuery)]);
-      return [...jikan, ...webtoon];
-    }
-
-    const [jikan, webtoon] = await Promise.all([fetchJikan(query), fetchWebtoon(query)]);
+  async function loadData(query, types) {
+    const [jikan, webtoon] = await Promise.all([ fetchJikan(query, types), fetchWebtoon(query, types) ]);
     return [...jikan, ...webtoon];
   }
 
   /////////////////////////////
-  // SCORE
+  // SEARCH (AVEC LE FILTRE NSFW RÉPARÉ)
   /////////////////////////////
-  function getScore(item, query) {
-    const title = normalize(item.title);
-    const q = normalize(query);
+  async function search() {
+    if (!searchInput || !resultsContainer) return;
+    const query = normalize(searchInput.value.trim());
+    const types = Array.from(typeFilters).filter((v) => v.checked).map((v) => v.value.toLowerCase());
 
-    let score = 0;
+    resultsContainer.innerHTML = "<p style='text-align:center; padding:20px; width:100%; color:#b7b7c9;'>Chargement... ⏳</p>";
 
-    if (title === q) score += 1000;
-    if (title.startsWith(q)) score += 700;
-    if (title.includes(q)) score += 300;
+    let data = await loadData(query, types);
 
-    q.split(" ").forEach((word) => {
-      if (word && title.includes(word)) score += 150;
-    });
-
-    score += (Number(item.score) || 0) * 10;
-    return score;
-  }
-
-  /////////////////////////////
-  // CARD
-  /////////////////////////////
-  function createCard(item) {
+    // --- 1. FILTRE NSFW (SÉCURITÉ) ---
     const settings = getSettings();
-    const titleValue = String(item?.title || "");
-
     if (settings.hideNSFW) {
-      const badWords = ["hentai", "ecchi", "sex", "erotic"];
-      if (badWords.some((w) => normalize(titleValue).includes(w))) {
-        return document.createDocumentFragment();
-      }
+      data = data.filter(item => {
+        const genres = getGenresText(item).toLowerCase();
+        const title = normalize(item.title);
+        const rating = String(item.rating || "").toLowerCase();
+        
+        // On bloque si le genre ou le titre contient des mots-clés adultes
+        const isAdult = genres.includes("hentai") || 
+                        genres.includes("ecchi") || 
+                        genres.includes("erotica") || 
+                        rating.includes("hentai") ||
+                        title.includes("hentai");
+        return !isAdult;
+      });
     }
 
+    // --- 2. FILTRE PAR GENRE ---
+    const selectedGenre = genreFilter.value.toLowerCase();
+    if (selectedGenre) {
+      data = data.filter(item => getGenresText(item).toLowerCase().includes(selectedGenre));
+    }
+
+    // --- 3. FILTRE PAR SCORE ---
+    const minScore = parseFloat(scoreFilter.value) || 0;
+    if (minScore > 0) {
+      data = data.filter(item => (item.score || item.mean || 0) >= minScore);
+    }
+
+    // --- 4. LOGIQUE DE RECHERCHE TEXTUELLE ---
+    if (query) {
+      const words = query.split(/\s+/);
+      data = data.filter((item) => words.every((word) => normalize(item.title).includes(word)));
+    }
+
+    // --- 5. TRI ---
+    const sortVal = sortFilter.value;
+    data.sort((a, b) => {
+      if (sortVal === "score") return (b.score || b.mean || 0) - (a.score || a.mean || 0);
+      if (sortVal === "title") return a.title.localeCompare(b.title);
+      return 0;
+    });
+
+    resultsContainer.innerHTML = "";
+    if (!data.length) {
+      resultsContainer.innerHTML = "<p style='text-align:center; width:100%; color:#b7b7c9;'>Aucun résultat trouvé 😢</p>";
+      return;
+    }
+
+    data.slice(0, 100).forEach((item) => {
+      const card = createCard(item);
+      resultsContainer.appendChild(card);
+    });
+  }
+
+  function createCard(item) {
     const card = document.createElement("div");
     card.className = "anime-card";
-    card.dataset.id = getItemId(item);
-
-    const img =
-      item?.images?.jpg?.image_url ||
-      item?.images?.webp?.large_image_url ||
-      item?.cover ||
-      "";
-
-    const type = getItemTypeLabel(item);
-    const score = item?.score ?? item?.mean ?? "N/A";
-    const genres = getGenresText(item);
-
+    const img = item?.images?.jpg?.image_url || item?.cover || "";
     card.innerHTML = `
-      <img src="${escapeHtml(img || "https://via.placeholder.com/300x450?text=Kurolist")}" alt="${escapeHtml(titleValue)}">
+      <img src="${escapeHtml(img || "https://via.placeholder.com/300x450")}" alt="${escapeHtml(item.title)}">
       <div class="anime-info">
-        <h3>${escapeHtml(titleValue)}</h3>
-        <p>Type: ${escapeHtml(type)}</p>
-        <p>Genres: ${escapeHtml(genres)}</p>
-        <p>⭐ ${escapeHtml(String(score))}</p>
+        <h3>${escapeHtml(item.title)}</h3>
+        <p>Type: ${escapeHtml(getItemTypeLabel(item))}</p>
+        <p>⭐ ${escapeHtml(String(item.score || item.mean || "N/A"))}</p>
         <div class="buttons">
-          <button class="list-btn" type="button">Ma liste</button>
-          <button class="fav-btn" type="button">Favoris</button>
+          <button class="list-btn">Ma liste</button>
+          <button class="fav-btn">Favoris</button>
         </div>
       </div>
     `;
-
-    card.addEventListener("click", () => {
-      if (item?.source === "anime" || item?.source === "manga") {
-        fetchDetailedItem(item).then(openDetailsModal).catch(() => openDetailsModal(item));
-      } else {
-        openDetailsModal(item);
-      }
-    });
-
-    card.querySelector(".list-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      addToMyList(item);
-    });
-
-    card.querySelector(".fav-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      addToFavorites(item);
-    });
-
+    card.onclick = () => {
+        if (item?.source === "anime" || item?.source === "manga") fetchDetailedItem(item).then(openDetailsModal).catch(() => openDetailsModal(item));
+        else openDetailsModal(item);
+    };
+    card.querySelector(".list-btn").onclick = (e) => { e.stopPropagation(); addToMyList(item); };
+    card.querySelector(".fav-btn").onclick = (e) => { e.stopPropagation(); addToFavorites(item); };
     return card;
   }
 
   async function fetchDetailedItem(item) {
     const id = item?.mal_id ?? item?.id;
-    if (!id) return item;
-
     try {
-      if (item.source === "anime") {
-        const res = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`);
-        const json = await res.json();
-        return {
-          ...item,
-          ...json.data,
-          source: "anime",
-          mal_id: json.data?.mal_id ?? id,
-        };
-      }
-
-      if (item.source === "manga") {
-        const res = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
-        const json = await res.json();
-        return {
-          ...item,
-          ...json.data,
-          source: "manga",
-          mal_id: json.data?.mal_id ?? id,
-        };
-      }
-
-      return item;
-    } catch {
-      return item;
-    }
-  }
-
-  /////////////////////////////
-  // SEARCH
-  /////////////////////////////
-  async function search() {
-    if (!searchInput || !resultsContainer) return;
-
-    const query = normalize(searchInput.value.trim());
-    const types = Array.from(typeFilters)
-      .filter((v) => v.checked)
-      .map((v) => v.value.toLowerCase());
-
-    resultsContainer.innerHTML = "Chargement...";
-
-    let data = await loadData(query);
-
-    if (types.length) {
-      data = data.filter((i) => types.includes(i.source));
-    }
-
-    if (query) {
-      const words = query.split(/\s+/);
-      data = data.filter((item) => {
-        const title = normalize(item.title);
-        return words.every((word) => title.includes(word));
-      });
-
-      data.sort((a, b) => getScore(b, query) - getScore(a, query));
-    }
-
-    resultsContainer.innerHTML = "";
-
-    if (!data.length) {
-      resultsContainer.innerHTML = "<p>un problème est survenu réessaye 😢</p>";
-      return;
-    }
-
-    data.slice(0, 120).forEach((item) => {
-      const card = createCard(item);
-      if (card instanceof DocumentFragment) return;
-      resultsContainer.appendChild(card);
-    });
+      const res = await fetch(`https://api.jikan.moe/v4/${item.source}/${id}/full`);
+      const json = await res.json();
+      return { ...item, ...json.data };
+    } catch { return item; }
   }
 
   const debouncedSearch = debounce(search, 300);
-
   searchInput?.addEventListener("input", debouncedSearch);
   typeFilters.forEach((cb) => cb.addEventListener("change", search));
+  genreFilter.addEventListener("change", search);
+  scoreFilter.addEventListener("input", debouncedSearch);
+  sortFilter.addEventListener("change", search);
 
   injectCardStyles();
   search();
