@@ -1,66 +1,91 @@
-<!DOCTYPE html>    <html lang="fr">      
-<head>      
-<meta charset="UTF-8">      
-<meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>Catalogue - Kurolist</title>    <link rel="stylesheet" href="style.css">      
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-</head>    <body>    <header class="site-header">
-    
-    <!-- LIGNE PRINCIPALE -->
-    <div class="header-row">
-        <div class="menu-hamburger" id="hamburger">&#9776;</div>
-        
-        <div id="search-area">
-            <input type="text" id="catalogue-search" placeholder="Rechercher un anime, manga...">
-        </div>
-        
-        <img src="logo.svg" alt="Kurolist" class="site-logo">
-    </div>
-    
-    <!-- MENU -->
-    <nav id="side-menu" class="side-menu">
-        <a href="#" id="close-menu" class="close-btn">✕ Fermer</a>
-        
-        <a href="index.html"><i class="fa-solid fa-house"></i> Accueil</a>
-        <a href="mylist.html"><i class="fa-solid fa-book"></i> Ma Liste</a>
-        <a href="favorites.html"><i class="fa-solid fa-star"></i> Favoris</a>
-        <a href="planning.html"><i class="fa-solid fa-calendar-days"></i> Planning</a>
-        <a href="catalogue.html"><i class="fa-solid fa-table-cells-large"></i> Catalogue</a>
-        <a href="characters.html"><i class="fa-solid fa-user"></i> Personnages</a>
-        <a href="settings.html"><i class="fa-solid fa-gear"></i> Paramètres</a>
-    </nav>
-    
-    <!-- FILTRES (ON NE CHANGE RIEN) -->
-    <div class="search-filters-container">
-        
-        <div class="filters">
-            
-            <div class="filter-block">
-                <h3>Type</h3>
-                
-                <label class="type-btn">
-                    <input type="checkbox" class="type-filter" value="anime">
-                    <span>Anime</span>
-                </label>
-                
-                <label class="type-btn">
-                    <input type="checkbox" class="type-filter" value="manga">
-                    <span>Manga</span>
-                </label>
-                
-                <label class="type-btn">
-                    <input type="checkbox" class="type-filter" value="webtoon">
-                    <span>Webtoon</span>
-                </label>
-                
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogue - Kurolist</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="header-row">
+            <div class="menu-hamburger" id="hamburger">&#9776;</div>
+            <div id="search-area">
+                <input type="text" id="catalogue-search" placeholder="Rechercher un anime, manga...">
             </div>
-            
+            <img src="logo.svg" alt="Kurolist" class="site-logo">
         </div>
-        
-    </div>
-    
-</header>  <main>    <section id="catalogue-results"></section>  
-  
-</main>    <footer>      
-    <p>Kurolist © 2026</p>      
-</footer>    <script src="catalogue.js"></script>    </body>      
+
+        <nav id="side-menu" class="side-menu">
+            <a href="#" id="close-menu" class="close-btn">✕ Fermer</a>
+            <a href="index.html"><i class="fa-solid fa-house"></i> Accueil</a>
+            <a href="mylist.html"><i class="fa-solid fa-book"></i> Ma Liste</a>
+            <a href="favorites.html"><i class="fa-solid fa-star"></i> Favoris</a>
+            <a href="planning.html"><i class="fa-solid fa-calendar-days"></i> Planning</a>
+            <a href="catalogue.html"><i class="fa-solid fa-table-cells-large"></i> Catalogue</a>
+            <a href="characters.html"><i class="fa-solid fa-user"></i> Personnages</a>
+            <a href="settings.html"><i class="fa-solid fa-gear"></i> Paramètres</a>
+        </nav>
+
+        <div class="search-filters-container">
+            <div class="filters">
+                <div class="filter-block">
+                    <h3>Type</h3>
+                    <label class="type-btn">
+                        <input type="checkbox" class="type-filter" value="anime">
+                        <span>Anime</span>
+                    </label>
+                    <label class="type-btn">
+                        <input type="checkbox" class="type-filter" value="manga">
+                        <span>Manga</span>
+                    </label>
+                    <label class="type-btn">
+                        <input type="checkbox" class="type-filter" value="webtoon">
+                        <span>Webtoon</span>
+                    </label>
+                </div>
+
+                <div class="filter-block">
+                    <h3>Options</h3>
+                    <div class="extra-filters" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <select id="genre-filter" class="kuro-select">
+                            <option value="">Tous les genres</option>
+                            <option value="Action">Action</option>
+                            <option value="Adventure">Aventure</option>
+                            <option value="Comedy">Comédie</option>
+                            <option value="Drama">Drame</option>
+                            <option value="Fantasy">Fantaisie</option>
+                            <option value="Romance">Romance</option>
+                            <option value="Sci-Fi">Sci-Fi</option>
+                            <option value="Horror">Horreur</option>
+                            <option value="Slice of Life">Tranche de vie</option>
+                            <option value="Supernatural">Surnaturel</option>
+                        </select>
+
+                        <select id="sort-filter" class="kuro-select">
+                            <option value="score">Trier par Note</option>
+                            <option value="title">Trier par Titre</option>
+                        </select>
+
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span style="font-size: 12px; color: #fff;">Note min:</span>
+                            <input type="number" id="score-filter" min="0" max="10" step="0.5" value="0" style="width: 50px; background: #1a1a2e; border: 1px solid #333; color: #fff; border-radius: 5px; padding: 2px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="catalogue-results"></section>
+    </main>
+
+    <footer>
+        <p>Kurolist © 2026</p>
+    </footer>
+
+    <script src="catalogue.js"></script>
+</body>
 </html>
